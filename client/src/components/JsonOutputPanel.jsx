@@ -1,17 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Code2 } from "lucide-react"
 
-const MOCK_JSON = {
-  workflow: "recruitment_onboarding",
-  action: "send_email",
-  targetRole: "Frontend Developer",
-  recipientCount: 8,
-  emailType: "onboarding",
-  priority: "high",
-  timestamp: new Date().toISOString(),
-}
-
-export default function JsonOutputPanel() {
+export default function JsonOutputPanel({ data }) {
   return (
     <Card className="bg-card border-border shadow-lg overflow-hidden animate-in fade-in duration-500">
 
@@ -37,7 +27,9 @@ export default function JsonOutputPanel() {
         <div className="bg-secondary border border-border rounded-lg p-4 font-mono text-xs text-foreground overflow-x-auto">
 
           <pre className="whitespace-pre-wrap wrap-break-word leading-relaxed">
-            {JSON.stringify(MOCK_JSON, null, 2)}
+            {data
+              ? JSON.stringify(data, null, 2)
+              : "No parsed instruction data received from backend yet."}
           </pre>
 
         </div>

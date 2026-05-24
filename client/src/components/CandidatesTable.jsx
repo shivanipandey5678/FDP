@@ -2,23 +2,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle2, Mail, Clock, Users } from 'lucide-react'
 
-const CANDIDATES = [
-  {
-    id: 1,
-    name: 'Alex Chen',
-    role: 'Frontend Developer',
-    experience: '5 years',
-    emailStatus: 'sent',
-  },
-  {
-    id: 2,
-    name: 'Jordan Smith',
-    role: 'Frontend Developer',
-    experience: '3 years',
-    emailStatus: 'sent',
-  },
-]
-
 function getStatusIcon(status) {
   switch (status) {
     case 'sent':
@@ -63,12 +46,10 @@ function getStatusBadge(status) {
   }
 }
 
-export default function CandidatesTable() {
-  const sentCount = CANDIDATES.filter(
-    (c) => c.emailStatus === 'sent'
-  ).length
-
-  const totalCount = CANDIDATES.length
+export default function CandidatesTable({ candidates = [] }) {
+  const totalCount = candidates.length
+  const sentCount = candidates.filter((c) => c.status === 'sent').length
+  // const percentage = totalCount > 0 ? Math.round((sentCount / totalCount) * 100) : 0
 
   return (
     <Card className="bg-card border-border shadow-lg overflow-hidden">
@@ -118,32 +99,42 @@ export default function CandidatesTable() {
           </thead>
 
           <tbody>
-            {CANDIDATES.map((candidate) => (
-              <tr
-                key={candidate.id}
-                className="border-b border-border hover:bg-secondary/50"
-              >
-                <td className="py-4">
-                  {candidate.name}
+            {candidates.length === 0 ? (
+              <tr>
+                <td colSpan="4" className="py-6 text-center text-sm text-muted-foreground">
+                  No candidate data received from backend.
                 </td>
-
-                <td>
-                  {candidate.role}
-                </td>
-
-                <td>
-                  {candidate.experience}
-                </td>
-
-                <td>
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(candidate.emailStatus)}
-                    {getStatusBadge(candidate.emailStatus)}
-                  </div>
-                </td>
-
               </tr>
-            ))}
+            ) : (
+              candidates.map((candidate) => (
+                <tr
+                  key={candidate.id}
+                  className="border-b border-border hover:bg-secondary/50"
+                >
+                  <td className="py-4">
+                    {candidate.name}
+                  </td>
+
+                  <td>
+                    {candidate.role}
+                  </td>
+
+                  <td>
+                    {typeof candidate.experience === 'number'
+                      ? `${candidate.experience} years`
+                      : candidate.experience || 'N/A'}
+                  </td>
+
+                  <td>
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(candidate.status)}
+                      {getStatusBadge(candidate.status)}
+                    </div>
+                  </td>
+
+                </tr>
+              ))
+            )}
           </tbody>
 
         </table>

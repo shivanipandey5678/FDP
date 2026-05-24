@@ -30,6 +30,10 @@ function App() {
   const [isExecuting, setIsExecuting] = useState(false);
 
   const [executionComplete, setExecutionComplete] = useState(false);
+  const [result, setResult] = useState(null);
+  const [parsedData, setParsedData] = useState(null);
+  const [candidates, setCandidates] = useState([]);
+  const [logs, setLogs] = useState([]);
 
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -52,11 +56,44 @@ function App() {
   const handleExecute = async () => {
     setIsExecuting(true);
     setExecutionComplete(false);
+    setResult(null);
+    setParsedData(null);
+    setCandidates([]);
+    setLogs([]);
 
-    setTimeout(() => {
+    try {
+      const res = await fetch("http://localhost:5000/api/workflow/run", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt }),
+      });
+
+      const data = await res.json();
+      console.log("Backend response:", data);
+
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to execute workflow");
+      }
+
+      setResult(data);
+      setParsedData(data.parsed || null);
+      setCandidates(data.candidates || []);
+      setLogs(
+        (data.logs || []).map((message, index) => ({
+          id: index,
+          level: message.toLowerCase().includes("success") ? "success" : "info",
+          message,
+          timestamp: new Date().toLocaleTimeString(),
+        }))
+      );
       setIsExecuting(false);
       setExecutionComplete(true);
-    }, 3000);
+    } catch (error) {
+      console.error(error);
+      setIsExecuting(false);
+    }
   };
 
   return (
@@ -159,16 +196,16 @@ function App() {
 
         {/* Results */}
 
-        {executionComplete && (
+        {executionComplete && result && (
           <div className="mt-12 space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
-              <JsonOutputPanel />
-              <CandidatesTable />
+              <JsonOutputPanel data={parsedData} />
+              <CandidatesTable candidates={candidates} />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <EmailPreview />
-              <ExecutionLogs />
+              <EmailPreview candidate={candidates[0]} parsed={parsedData} />
+              <ExecutionLogs logs={logs} />
             </div>
           </div>
         )}

@@ -2,44 +2,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Terminal } from "lucide-react"
 
-const LOGS = [
-  {
-    timestamp: "2024-05-24 14:32:01",
-    level: "info",
-    message: "Workflow execution started",
-  },
-  {
-    timestamp: "2024-05-24 14:32:02",
-    level: "info",
-    message: 'Parsing user intent: "Send onboarding emails"',
-  },
-  {
-    timestamp: "2024-05-24 14:32:03",
-    level: "success",
-    message: "Intent parsed successfully",
-  },
-  {
-    timestamp: "2024-05-24 14:32:04",
-    level: "info",
-    message: "Fetching candidates from database",
-  },
-  {
-    timestamp: "2024-05-24 14:32:05",
-    level: "success",
-    message: "Retrieved 8 candidates",
-  },
-  {
-    timestamp: "2024-05-24 14:32:06",
-    level: "info",
-    message: "Generating onboarding emails",
-  },
-  {
-    timestamp: "2024-05-24 14:32:08",
-    level: "success",
-    message: "Generated emails successfully",
-  },
-]
-
 function getLevelBadge(level) {
   switch (level) {
     case "info":
@@ -67,7 +29,7 @@ function getLevelBadge(level) {
   }
 }
 
-export default function ExecutionLogs() {
+export default function ExecutionLogs({ logs = [] }) {
   return (
     <Card className="bg-card border-border shadow-lg overflow-hidden animate-in fade-in duration-500">
 
@@ -95,26 +57,30 @@ export default function ExecutionLogs() {
 
       <CardContent>
         <div className="bg-secondary border border-border rounded-lg p-4 space-y-1 max-h-96 overflow-y-auto font-mono text-xs">
-
-          {LOGS.map((log, index) => (
-            <div
-              key={index}
-              className="flex items-start gap-2 py-2 px-2 rounded hover:bg-primary/5 transition-colors duration-150"
-            >
-              <span className="text-muted-foreground/50 shrink-0 w-32">
-                {log.timestamp}
-              </span>
-
-              <div className="shrink-0">
-                {getLevelBadge(log.level)}
-              </div>
-
-              <span className="text-foreground/80 flex-1">
-                {log.message}
-              </span>
+          {logs.length === 0 ? (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              No execution logs available yet.
             </div>
-          ))}
+          ) : (
+            logs.map((log) => (
+              <div
+                key={log.id}
+                className="flex items-start gap-2 py-2 px-2 rounded hover:bg-primary/5 transition-colors duration-150"
+              >
+                <span className="text-muted-foreground/50 shrink-0 w-32">
+                  {log.timestamp}
+                </span>
 
+                <div className="shrink-0">
+                  {getLevelBadge(log.level)}
+                </div>
+
+                <span className="text-foreground/80 flex-1">
+                  {log.message}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </CardContent>
     </Card>
