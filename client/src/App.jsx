@@ -86,7 +86,7 @@ function App() {
           level: message.toLowerCase().includes("success") ? "success" : "info",
           message,
           timestamp: new Date().toLocaleTimeString(),
-        }))
+        })),
       );
       setIsExecuting(false);
       setExecutionComplete(true);

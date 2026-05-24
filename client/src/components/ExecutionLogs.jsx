@@ -1,6 +1,12 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Terminal } from "lucide-react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Terminal } from "lucide-react";
 
 function getLevelBadge(level) {
   switch (level) {
@@ -12,7 +18,7 @@ function getLevelBadge(level) {
         >
           INFO
         </Badge>
-      )
+      );
 
     case "success":
       return (
@@ -22,36 +28,31 @@ function getLevelBadge(level) {
         >
           OK
         </Badge>
-      )
+      );
 
     default:
-      return null
+      return null;
   }
 }
 
 export default function ExecutionLogs({ logs = [] }) {
   return (
     <Card className="bg-card border-border shadow-lg overflow-hidden animate-in fade-in duration-500">
-
       <div className="h-1 bg-primary"></div>
 
       <CardHeader className="pb-4">
         <div className="flex items-center gap-3">
-
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
             <Terminal className="h-5 w-5 text-primary" />
           </div>
 
           <div>
-            <CardTitle className="text-lg">
-              Execution Logs
-            </CardTitle>
+            <CardTitle className="text-lg">Execution Logs</CardTitle>
 
             <CardDescription className="text-sm">
               Real-time system messages
             </CardDescription>
           </div>
-
         </div>
       </CardHeader>
 
@@ -71,18 +72,14 @@ export default function ExecutionLogs({ logs = [] }) {
                   {log.timestamp}
                 </span>
 
-                <div className="shrink-0">
-                  {getLevelBadge(log.level)}
-                </div>
+                <div className="shrink-0">{getLevelBadge(log.level)}</div>
 
-                <span className="text-foreground/80 flex-1">
-                  {log.message}
-                </span>
+                <span className="text-foreground/80 flex-1">{log.message}</span>
               </div>
             ))
           )}
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
