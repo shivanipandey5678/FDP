@@ -55,7 +55,7 @@ function getStatusBadge(status) {
 export default function CandidatesTable({ candidates = [] }) {
   const totalCount = candidates.length;
   const sentCount = candidates.filter((c) => c.status === "sent").length;
-  // const percentage = totalCount > 0 ? Math.round((sentCount / totalCount) * 100) : 0
+  const percentage = totalCount > 0 ? Math.round((sentCount / totalCount) * 100) : 0
 
   return (
     <Card className="bg-card border-border shadow-lg overflow-hidden">
@@ -79,7 +79,7 @@ export default function CandidatesTable({ candidates = [] }) {
 
           <div className="text-right">
             <div className="text-2xl font-bold text-accent">
-              {Math.round((sentCount / totalCount) * 100)}%
+              {percentage}%
             </div>
 
             <p className="text-xs text-muted-foreground">Complete</p>
