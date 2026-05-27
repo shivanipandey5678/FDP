@@ -5,80 +5,14 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const ChatPanel = () => {
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content: "Hello. Describe your hiring requirement.",
-    },
-  ]);
-
+const ChatPanel = ({ messages, onSendMessage }) => {
   const [input, setInput] = useState("");
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = () => {
     if (!input.trim()) return;
 
-    const userMessage = {
-      role: "user",
-      content: input,
-    };
-
-    const updatedMessages = [...messages, userMessage];
-
-    setMessages(updatedMessages);
-
+    onSendMessage(input.trim());
     setInput("");
-
-    try {
-      const res = await fetch("http://localhost:5000/api/workflow/run", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: updatedMessages,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || data.success === false) {
-        const errorMessage = data.error || "Something went wrong";
-
-        throw new Error(errorMessage);
-      }
-      console.log(data, "😴");
-
-      let assistantContent = "";
-
-      if (data.type === "clarification") {
-        assistantContent = data.data.question;
-      } else if (data.type === "execution") {
-        assistantContent = `I found ${data.candidates?.length ?? 0} candidate(s) for ${data.data.role || "your request"}.`;
-        if (data.data.role) {
-          assistantContent += `\nRole: ${data.data.role}`;
-        }
-        if (data.data.experience) {
-          assistantContent += `\nExperience: ${data.data.experience}`;
-        }
-        if (data.data.skills) {
-          assistantContent += `\nSkills: ${data.data.skills.join(", ")}`;
-        }
-      } else {
-        assistantContent = data.data?.question || JSON.stringify(data.data);
-      }
-
-      const aiMessage = {
-        role: "assistant",
-        content: assistantContent,
-      };
-
-      console.log(aiMessage, "🌻🗣️");
-
-      setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
-      console.error(error,"🚀🚀🚀🚀🚀🚀");
-    }
   };
 
   return (
@@ -90,8 +24,6 @@ const ChatPanel = () => {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Messages */}
-
         <div className="h-100 overflow-y-auto border rounded-lg p-4 space-y-4 bg-background">
           {messages.map((msg, index) => (
             <div
@@ -113,23 +45,14 @@ const ChatPanel = () => {
           ))}
         </div>
 
-        {/* Input */}
-
         <div className="space-y-3">
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Describe hiring workflow..."
-            className="
-                min-h-24
-                resize-none
-                border-2
-                border-blue-500
-                rounded-lg
-                focus-visible:ring-0
-                focus-visible:outline-none
-                focus-visible:border-blue-500
-            "
+            className={
+              "min-h-24 resize-none border-2 border-blue-500 rounded-lg focus-visible:ring-0 focus-visible:outline-none focus-visible:border-blue-500"
+            }
           />
           <Button onClick={handleSendMessage} className="w-full">
             Send Message

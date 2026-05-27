@@ -38,24 +38,23 @@ export const analyzeConversation = async (messages) => {
     };
   });
 
- const response = await client.chat.completions.create({
-  model: "gpt-4o-mini",
+  const response = await client.chat.completions.create({
+    model: "gpt-4o-mini",
 
-  response_format: {
-    type: "json_object",
-  },
-
-  temperature: 0,
-
-  messages: [
-    {
-      role: "system",
-      content: SYSTEM_PROMPT,
+    response_format: {
+      type: "json_object",
     },
-    ...formattedMessages,
-  ],
-});
 
+    temperature: 0,
+
+    messages: [
+      {
+        role: "system",
+        content: SYSTEM_PROMPT,
+      },
+      ...formattedMessages,
+    ],
+  });
 
   console.log("  📡 OpenAI Response Received");
   console.log("  🔹 Choices count:", response.choices?.length);
@@ -83,6 +82,102 @@ export const analyzeConversation = async (messages) => {
     console.error("  ❌ JSON parse failed. Raw content:", normalized);
     throw new Error(`Failed to parse OpenAI response: ${parseError.message}`);
   }
+};
+
+export const createEmailPreview = (parsed) => {
+  const role = parsed.role || "candidate";
+  const subjectMap = {
+    shortlist_candidates: `Candidate shortlist update for ${role}`,
+    send_interview_email: `Interview invitation for ${role}`,
+    send_selection_email: `Selection update for ${role}`,
+    send_second_round_email: `Second round interview invitation for ${role}`,
+    send_assignment_email: `Assignment details for ${role}`,
+    send_hr_followup_email: `HR follow-up for ${role}`,
+    send_onboarding_email: `Onboarding next steps for ${role}`,
+  };
+
+  const subject = subjectMap[parsed.action] || `Recruitment update for ${role}`;
+  const assignmentLink =
+    parsed.assignmentLink ||
+    parsed.assignment_link ||
+    parsed.assignmentUrl ||
+    parsed.assignmentURL ||
+    parsed.assignment ||
+    parsed.link;
+  const interviewLink =
+    parsed.interviewLink ||
+    parsed.interview_link ||
+    parsed.meetLink ||
+    parsed.googleMeetLink ||
+    parsed.interviewURL ||
+    parsed.interviewUrl;
+
+  let body = "";
+
+  if (parsed.action === "send_interview_email") {
+    body += `We are excited to invite you to interview for the ${role} role.`;
+    if (parsed.interviewRound) {
+      body += ` This is for the ${parsed.interviewRound} round.`;
+    }
+    if (parsed.interviewDate) {
+      body += ` The interview is scheduled for ${parsed.interviewDate}.`;
+    }
+    if (parsed.interviewMode) {
+      body += ` The interview mode is ${parsed.interviewMode}.`;
+    }
+    if (interviewLink) {
+      body += ` You can join the interview here: ${interviewLink}.`;
+    }
+    if (parsed.hrContact) {
+      body += ` If you have any questions, please contact ${parsed.hrContact}.`;
+    }
+    body += `\n\nPlease confirm your availability at your earliest convenience.`;
+  } else if (parsed.action === "send_selection_email") {
+    body += `Congratulations! You have been selected to move forward in the hiring process for the ${role} role.`;
+    body += ` We will share next steps shortly.`;
+  } else if (parsed.action === "send_second_round_email") {
+    body += `Great news — you have been shortlisted for the second round for the ${role} position.`;
+    body += ` We will communicate the next interview details soon.`;
+  } else if (parsed.action === "send_assignment_email") {
+    body += `Please find the assignment details for the ${role} role below.`;
+    if (assignmentLink) {
+      body += ` You can access the assignment here: ${assignmentLink}.`;
+    }
+    if (parsed.assignmentDeadline) {
+      body += ` Please submit by ${parsed.assignmentDeadline}.`;
+    }
+    body += `\n\nKindly complete the assignment and submit it by the deadline.`;
+  } else if (parsed.action === "send_hr_followup_email") {
+    body += `This is a quick follow-up from our HR team regarding your ${role} application.`;
+    body += ` We will connect with you shortly with more details.`;
+  } else if (parsed.action === "send_onboarding_email") {
+    body += `Welcome aboard! Here are the next steps for onboarding into the ${role} role.`;
+    body += ` We look forward to welcoming you to the team.`;
+  } else if (parsed.action === "shortlist_candidates") {
+    body += `We have reviewed the candidate requirements for the ${role} role and are moving forward with shortlisting.`;
+    if (parsed.skills && parsed.skills.length) {
+      body += ` The required skills include: ${parsed.skills.join(", ")}.`;
+    }
+    if (parsed.experience) {
+      body += ` Desired experience is ${parsed.experience}.`;
+    }
+    body += `\n\nPlease confirm if you would like to proceed with these shortlisted candidates.`;
+  } else {
+    body += `This email contains an update about the ${role} role.`;
+  }
+
+  if (parsed.providedEmails && parsed.providedEmails.length) {
+    body += `\n\nThis preview will be sent to: ${parsed.providedEmails.join(", ")}.`;
+  }
+
+  body += `\n\nThank you for your time.`;
+
+  return {
+    subject,
+    greeting: "Dear Candidate,",
+    body,
+    closing: `Best regards,\nKalvium Recruitment Team`,
+  };
 };
 
 export const rankCandidatesWithAI = async (parsed, candidates) => {

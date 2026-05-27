@@ -4,8 +4,16 @@ import { filterCandidates } from "../services/candidateService.js";
 
 import {
   analyzeConversation,
+  createEmailPreview,
   rankCandidatesWithAI,
 } from "../services/llmService.js";
+
+const createLogEntry = (message, level = "info") => ({
+  id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  timestamp: new Date().toISOString(),
+  level,
+  message,
+});
 
 export const runWorkflow = async (req, res) => {
   try {
@@ -27,13 +35,11 @@ export const runWorkflow = async (req, res) => {
 
     console.log("✅ Validation passed - messages is valid array\n");
 
-    // STEP 1
     console.log("🔄 STEP 1: Analyzing conversation with AI...");
     const aiResult = await analyzeConversation(messages);
     console.log("✅ STEP 1 COMPLETED");
     console.log("📝 AI Analysis Result:", JSON.stringify(aiResult, null, 2));
 
-    // clarification stop
     if (aiResult.needsClarification) {
       console.log("\n⚠️  CLARIFICATION NEEDED");
       console.log("❓ Question:", aiResult.question);
@@ -52,46 +58,114 @@ export const runWorkflow = async (req, res) => {
       });
     }
 
-    console.log("✅ No clarification needed - proceeding with execution\n");
-
-    // STEP 2
-    console.log("🔄 STEP 2: Filtering candidates from database...");
-    console.log("   - Required Role:", aiResult.role);
-    console.log("   - Required Experience:", aiResult.experience);
-    console.log("   - Required Skills:", aiResult.skills);
-    const filteredCandidates = filterCandidates(candidates, aiResult);
-    console.log("✅ STEP 2 COMPLETED");
-    console.log("🧑‍💼 Filtered Candidates Count:", filteredCandidates.length);
     console.log(
-      "📋 Filtered Candidates:",
-      JSON.stringify(filteredCandidates, null, 2),
+      "✅ No clarification needed - validation indicates preview can be generated\n",
     );
 
-    // STEP 3
-    console.log("\n🔄 STEP 3: Ranking candidates with AI...");
+    const preview = createEmailPreview(aiResult);
+
+    console.log("🔄 STEP 2: Preview generation complete");
+    console.log("📤 Sending preview-ready response to client...\n");
+
+    return res.json({
+      success: true,
+      type: "ready_for_preview",
+      status: "ready_for_preview",
+      data: {
+        parsed: aiResult,
+        preview,
+        message:
+          "All required information has been received. Email preview is ready to generate.",
+      },
+    });
+  } catch (error) {
+    console.log("\n" + "=".repeat(40));
+    console.error("❌ WORKFLOW ERROR OCCURRED");
+    console.error("Error Message:", error.message);
+    console.error("Stack Trace:", error.stack);
+    console.log("=".repeat(40) + "\n");
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+export const executeWorkflow = async (req, res) => {
+  try {
+    console.log("\n========================================");
+    console.log("📨 EXECUTION REQUEST RECEIVED");
+    console.log("========================================");
+    console.log("🔹 Time:", new Date().toISOString());
+
+    const { parsedData } = req.body;
+    console.log(
+      "🔹 Parsed data received:",
+      JSON.stringify(parsedData, null, 2),
+    );
+
+    if (!parsedData || typeof parsedData !== "object") {
+      console.error("❌ VALIDATION FAILED: parsedData must be an object");
+      return res.status(400).json({
+        success: false,
+        error: "Invalid request. 'parsedData' must be provided.",
+      });
+    }
+
+    const hasProvidedEmails =
+      Array.isArray(parsedData.providedEmails) &&
+      parsedData.providedEmails.length > 0;
+
+    let executionCandidates = [];
+    const logs = [];
+
+    if (hasProvidedEmails) {
+      logs.push(
+        createLogEntry("Provided emails exist; skipping database filtering."),
+      );
+      executionCandidates = candidates.filter((candidate) =>
+        parsedData.providedEmails.includes(candidate.email),
+      );
+    } else {
+      logs.push(
+        createLogEntry(
+          "No provided emails found; filtering candidate database.",
+        ),
+      );
+      executionCandidates = filterCandidates(candidates, parsedData);
+    }
+
+    logs.push(
+      createLogEntry(
+        `Matched ${executionCandidates.length} candidate(s) for execution.`,
+      ),
+    );
+
+    console.log("🔄 STEP 3: Ranking candidates with AI...");
     const rankedCandidates = await rankCandidatesWithAI(
-      aiResult,
-      filteredCandidates,
+      parsedData,
+      executionCandidates,
     );
     console.log("✅ STEP 3 COMPLETED");
-    console.log(
-      "🏆 Ranked Candidates:",
-      JSON.stringify(rankedCandidates, null, 2),
-    );
 
     console.log("\n✅ WORKFLOW EXECUTION SUCCESSFUL");
-    console.log("📤 Sending final response to client...");
+    console.log("📤 Sending execution response to client...");
     console.log("========================================\n");
 
     return res.json({
       success: true,
       type: "execution",
-      data: aiResult,
+      status: "completed",
+      data: {
+        parsed: parsedData,
+      },
       candidates: rankedCandidates,
+      logs,
     });
   } catch (error) {
     console.log("\n" + "=".repeat(40));
-    console.error("❌ WORKFLOW ERROR OCCURRED");
+    console.error("❌ EXECUTION ERROR OCCURRED");
     console.error("Error Message:", error.message);
     console.error("Stack Trace:", error.stack);
     console.log("=".repeat(40) + "\n");

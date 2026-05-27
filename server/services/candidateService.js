@@ -7,14 +7,6 @@ export const filterCandidates = (candidates, parsed) => {
     throw new Error("Missing 'role' in parsed data");
   }
 
-  // if (!parsed.experience) {
-  //   throw new Error("Missing 'experience' in parsed data");
-  // }
-
-  // if (!parsed.skills || !Array.isArray(parsed.skills)) {
-  //   throw new Error("Missing or invalid 'skills' array in parsed data");
-  // }
-
   console.log("  🔍 Starting candidate filtering...");
   console.log("  🔹 Total candidates in database:", candidates.length);
 
@@ -23,13 +15,25 @@ export const filterCandidates = (candidates, parsed) => {
       .toLowerCase()
       .includes(parsed.role.toLowerCase());
 
-    const expMatch = candidate.experience >= Number(parsed.experience);
-
-    const skillMatch = parsed.skills.every((skill) =>
-      candidate.skills.includes(skill),
+    const candidateExperience = Number(
+      String(candidate.experience).replace(/[^\d]/g, ""),
     );
+    const requiredExperience = parsed.experience
+      ? Number(String(parsed.experience).replace(/[^\d]/g, ""))
+      : 0;
+    const expMatch = parsed.experience
+      ? candidateExperience >= requiredExperience
+      : true;
 
-    // Log each candidate's matching status
+    const requiredSkills = Array.isArray(parsed.skills) ? parsed.skills : [];
+    const skillMatch = requiredSkills.length
+      ? requiredSkills.every((skill) =>
+          candidate.skills
+            .map((candidateSkill) => candidateSkill.toLowerCase())
+            .includes(skill.toLowerCase()),
+        )
+      : true;
+
     if (roleMatch && expMatch && skillMatch) {
       console.log(
         `  ✅ ${candidate.name} - Role: ${roleMatch}, Exp: ${expMatch}, Skills: ${skillMatch}`,

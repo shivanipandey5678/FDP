@@ -2,12 +2,9 @@ import { useState, useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 
-
-
-
 import { Badge } from "@/components/ui/badge";
 
-import {  Sparkles, Moon, Sun } from "lucide-react";
+import { Sparkles, Moon, Sun } from "lucide-react";
 
 import WorkflowPanel from "./components/WorkflowPanel";
 import JsonOutputPanel from "./components/JsonOutputPanel";
@@ -16,13 +13,16 @@ import EmailPreview from "./components/EmailPreview";
 import ExecutionLogs from "./components/ExecutionLogs";
 import ChatPanel from "./components/ChatPanel";
 
-
 function App() {
-  
-
-  const [executionComplete, setExecutionComplete] = useState(false);
-  const [result, setResult] = useState(null);
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      content: "Hello. Describe your hiring requirement.",
+    },
+  ]);
+  const [workflowStatus, setWorkflowStatus] = useState("idle");
   const [parsedData, setParsedData] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [candidates, setCandidates] = useState([]);
   const [logs, setLogs] = useState([]);
 
@@ -40,11 +40,117 @@ function App() {
     localStorage.setItem("theme", isDark ? "dark" : "light");
   }, [isDark]);
 
+  const addLog = (message, level = "info") => {
+    setLogs((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        timestamp: new Date().toLocaleTimeString(),
+        level,
+        message,
+      },
+    ]);
+  };
+
+  const handleSendMessage = async (content) => {
+    const userMessage = {
+      role: "user",
+      content,
+    };
+
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
+    setWorkflowStatus("idle");
+    setPreview(null);
+    setParsedData(null);
+    setCandidates([]);
+    addLog("Sending request to backend.", "info");
+
+    try {
+      const res = await fetch("http://localhost:5000/api/workflow/run", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages: nextMessages }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.success === false) {
+        throw new Error(data.error || "Something went wrong");
+      }
+
+      let assistantContent = "";
+
+      if (data.type === "clarification") {
+        setWorkflowStatus("clarification");
+        assistantContent = data.data.question;
+        addLog("Clarification requested by AI.", "info");
+      } else if (data.type === "ready_for_preview") {
+        setWorkflowStatus("ready_for_preview");
+        setParsedData(data.data.parsed);
+        setPreview(data.data.preview);
+        assistantContent = data.data.message || "Preview is ready.";
+        addLog("Preview generated and ready for approval.", "success");
+      } else {
+        setWorkflowStatus("idle");
+        assistantContent = data.data?.question || JSON.stringify(data.data);
+        addLog("Received unknown response type from backend.", "error");
+      }
+
+      const assistantMessage = {
+        role: "assistant",
+        content: assistantContent,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      addLog(error.message || "Failed to send message.", "error");
+      console.error(error);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!parsedData) return;
+
+    setWorkflowStatus("awaiting_approval");
+    addLog("Approval received. Beginning execution.", "info");
+
+    try {
+      const res = await fetch("http://localhost:5000/api/workflow/execute", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ parsedData }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.success === false) {
+        throw new Error(data.error || "Execution failed");
+      }
+
+      setWorkflowStatus("execution");
+      setCandidates(data.candidates || []);
+      setLogs((prev) => [...prev, ...(data.logs || [])]);
+      setWorkflowStatus("completed");
+      addLog("Workflow execution completed.", "success");
+
+      const executionMessage = {
+        role: "assistant",
+        content: `Workflow execution completed. ${data.candidates?.length ?? 0} candidate(s) were processed.`,
+      };
+
+      setMessages((prev) => [...prev, executionMessage]);
+    } catch (error) {
+      addLog(error.message || "Execution failed.", "error");
+      console.error(error);
+    }
+  };
+
   const toggleTheme = () => {
     setIsDark((prev) => !prev);
   };
-
-
 
   return (
     <main className="min-h-screen bg-background">
@@ -92,32 +198,31 @@ function App() {
         {/* Main Grid */}
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left */}
+          <div className="lg:col-span-2">
+            <ChatPanel messages={messages} onSendMessage={handleSendMessage} />
+          </div>
 
-            <div className="lg:col-span-2">
-                <ChatPanel />
-            </div>
-
-  {/* Right Workflow Panel */}
-
-  <WorkflowPanel />
+          <WorkflowPanel status={workflowStatus} />
         </div>
 
-        {/* Results */}
-
-        {(
-          <div className="mt-12 space-y-6">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <JsonOutputPanel data={parsedData} />
-              <CandidatesTable candidates={candidates} />
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-2">
-              <EmailPreview candidate={candidates[0]} parsed={parsedData} />
-              <ExecutionLogs logs={logs} />
-            </div>
+        <div className="mt-12 space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <JsonOutputPanel data={parsedData} />
+            <CandidatesTable candidates={candidates} />
           </div>
-        )}
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div>
+              <EmailPreview preview={preview} />
+              {workflowStatus === "ready_for_preview" && preview ? (
+                <div className="mt-4 flex justify-end">
+                  <Button onClick={handleApprove}>Approve and Execute</Button>
+                </div>
+              ) : null}
+            </div>
+            <ExecutionLogs logs={logs} />
+          </div>
+        </div>
       </div>
     </main>
   );
