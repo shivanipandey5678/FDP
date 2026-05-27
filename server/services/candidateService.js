@@ -1,3 +1,10 @@
+// Helper function to extract experience years (first number found)
+const extractYears = (experienceStr) => {
+  if (!experienceStr) return 0;
+  const match = String(experienceStr).match(/\d+/);
+  return match ? Number(match[0]) : 0;
+};
+
 export const filterCandidates = (candidates, parsed) => {
   if (!parsed) {
     throw new Error("Parse data is missing - cannot filter candidates");
@@ -15,11 +22,9 @@ export const filterCandidates = (candidates, parsed) => {
       .toLowerCase()
       .includes(parsed.role.toLowerCase());
 
-    const candidateExperience = Number(
-      String(candidate.experience).replace(/[^\d]/g, ""),
-    );
+    const candidateExperience = extractYears(candidate.experience);
     const requiredExperience = parsed.experience
-      ? Number(String(parsed.experience).replace(/[^\d]/g, ""))
+      ? extractYears(parsed.experience)
       : 0;
     const expMatch = parsed.experience
       ? candidateExperience >= requiredExperience

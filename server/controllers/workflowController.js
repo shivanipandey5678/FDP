@@ -8,6 +8,8 @@ import {
   rankCandidatesWithAI,
 } from "../services/llmService.js";
 
+import { sendShortlistEmails } from "../services/emailService.js";
+
 const createLogEntry = (message, level = "info") => ({
   id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
   timestamp: new Date().toISOString(),
@@ -149,6 +151,22 @@ export const executeWorkflow = async (req, res) => {
     );
     console.log("✅ STEP 3 COMPLETED");
 
+    // Merge ranked results with full candidate details
+    const enrichedCandidates = rankedCandidates.map((rankedItem) => {
+      const candidateDetails = executionCandidates.find(
+        (c) => c.id === rankedItem.id,
+      );
+
+      return {
+        ...candidateDetails,
+        score: rankedItem.score,
+        reason: rankedItem.reason,
+        status: "pending", // Email status starts as pending
+      };
+    });
+
+    console.log("✅ Enriched candidates with full details and ranking scores");
+
     console.log("\n✅ WORKFLOW EXECUTION SUCCESSFUL");
     console.log("📤 Sending execution response to client...");
     console.log("========================================\n");
@@ -160,12 +178,91 @@ export const executeWorkflow = async (req, res) => {
       data: {
         parsed: parsedData,
       },
-      candidates: rankedCandidates,
+      candidates: enrichedCandidates,
       logs,
     });
   } catch (error) {
     console.log("\n" + "=".repeat(40));
     console.error("❌ EXECUTION ERROR OCCURRED");
+    console.error("Error Message:", error.message);
+    console.error("Stack Trace:", error.stack);
+    console.log("=".repeat(40) + "\n");
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+export const sendEmails = async (req, res) => {
+  try {
+    console.log("\n========================================");
+    console.log("📨 EMAIL SENDING REQUEST RECEIVED");
+    console.log("========================================");
+    console.log("🔹 Time:", new Date().toISOString());
+
+    const { shortlistedCandidates, parsedData } = req.body;
+
+    if (
+      !Array.isArray(shortlistedCandidates) ||
+      shortlistedCandidates.length === 0
+    ) {
+      console.error(
+        "❌ VALIDATION FAILED: shortlistedCandidates must be a non-empty array",
+      );
+      return res.status(400).json({
+        success: false,
+        error:
+          "Invalid request. 'shortlistedCandidates' must be a non-empty array.",
+      });
+    }
+
+    if (!parsedData || typeof parsedData !== "object") {
+      console.error("❌ VALIDATION FAILED: parsedData must be an object");
+      return res.status(400).json({
+        success: false,
+        error: "Invalid request. 'parsedData' must be provided.",
+      });
+    }
+
+    console.log(
+      `🔹 Sending emails to ${shortlistedCandidates.length} candidates...`,
+    );
+    console.log(`🔹 Role: ${parsedData.role}`);
+    console.log(
+      `🔹 Required skills: ${parsedData.skills?.join(", ") || "None"}`,
+    );
+
+    const emailResults = await sendShortlistEmails(
+      shortlistedCandidates,
+      parsedData,
+    );
+
+    const sentCount = emailResults.filter((r) => r.status === "sent").length;
+    const failedCount = emailResults.filter(
+      (r) => r.status === "failed",
+    ).length;
+
+    console.log(`\n📊 Email Results:`);
+    console.log(`  ✅ Sent: ${sentCount}`);
+    console.log(`  ❌ Failed: ${failedCount}`);
+    console.log("========================================\n");
+
+    return res.json({
+      success: true,
+      type: "email_results",
+      status: "completed",
+      data: {
+        totalCandidates: shortlistedCandidates.length,
+        sentCount,
+        failedCount,
+        results: emailResults,
+      },
+    });
+  } catch (error) {
+    console.log("\n" + "=".repeat(40));
+    console.error("❌ EMAIL SENDING ERROR OCCURRED");
     console.error("Error Message:", error.message);
     console.error("Stack Trace:", error.stack);
     console.log("=".repeat(40) + "\n");

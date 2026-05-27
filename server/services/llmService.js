@@ -180,6 +180,60 @@ export const createEmailPreview = (parsed) => {
   };
 };
 
+export const createShortlistEmailForCandidate = (candidate, parsed) => {
+  const role = parsed.role || "candidate";
+  const subject = `Congratulations! You've been shortlisted for ${role}`;
+
+  let body = `Congratulations on being shortlisted for the ${role} position at Kalvium!\n\n`;
+
+  body += `Your Profile Highlights:\n`;
+  body += `• Position: ${role}\n`;
+  body += `• Experience: ${candidate.experience}\n`;
+  body += `• Qualification: ${candidate.qualification}\n`;
+  body += `• CGPA: ${candidate.cgpa}\n`;
+  body += `• Skills: ${candidate.skills.join(", ")}\n`;
+  body += `• Location: ${candidate.location}\n\n`;
+
+  body += `Based on our review of your profile against our requirements:\n`;
+  if (parsed.skills && parsed.skills.length) {
+    body += `• Required Skills: ${parsed.skills.join(", ")}\n`;
+  }
+  if (parsed.experience) {
+    body += `• Required Experience: ${parsed.experience}\n`;
+  }
+  body += `\n`;
+
+  body += `We are pleased to move you forward to the next stage of our hiring process.\n\n`;
+
+  body += `Next Steps:\n`;
+  body += `Please confirm your availability for the interview within the next 3 days.\n`;
+  if (parsed.interviewDate) {
+    body += `Tentative Interview Date: ${parsed.interviewDate}\n`;
+  }
+  if (parsed.interviewMode) {
+    body += `Interview Mode: ${parsed.interviewMode}\n`;
+  }
+  if (parsed.interviewLink) {
+    body += `Interview Link: ${parsed.interviewLink}\n`;
+  }
+  body += `\n`;
+
+  body += `Please reply to this email to confirm your participation.\n`;
+  if (parsed.hrContact) {
+    body += `For any queries, feel free to reach out to ${parsed.hrContact}.\n`;
+  }
+
+  body += `\nWe look forward to learning more about you!\n`;
+
+  return {
+    subject,
+    greeting: `Dear ${candidate.name},`,
+    body,
+    closing: `Best regards,\nKalvium Recruitment Team`,
+    candidateEmail: candidate.email,
+  };
+};
+
 export const rankCandidatesWithAI = async (parsed, candidates) => {
   console.log("  🤖 OpenAI API Call - Ranking Candidates");
   console.log("  🔹 Candidates to rank:", candidates.length);
@@ -227,8 +281,14 @@ Return ONLY valid JSON array with no markdown or extra text. Example format:
   const rankingContent = response.choices[0].message.content;
   console.log("  📝 Raw Ranking Response:", rankingContent);
 
-  const rankedResult = JSON.parse(rankingContent);
-  console.log("  ✅ Successfully parsed ranking result");
+  const normalized = normalizeOpenAIJson(rankingContent);
 
-  return rankedResult;
+  try {
+    const rankedResult = JSON.parse(normalized);
+    console.log("  ✅ Successfully parsed ranking result");
+    return rankedResult;
+  } catch (parseError) {
+    console.error("  ❌ JSON parse failed. Raw content:", normalized);
+    throw new Error(`Failed to parse ranking response: ${parseError.message}`);
+  }
 };
